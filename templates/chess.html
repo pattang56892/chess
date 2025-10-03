@@ -1,0 +1,408 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Chess vs Stockfish - Enhanced</title>
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 28px; }
+        .theme-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .theme-btn {
+            padding: 8px 15px;
+            border: 2px solid white;
+            background: transparent;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .theme-btn:hover, .theme-btn.active {
+            background: white;
+            color: #667eea;
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 600px 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        .left-panel, .right-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .board-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #board { 
+            width: 550px !important;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        #status {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .panel-section {
+            margin-bottom: 25px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .panel-section h3 {
+            margin-bottom: 12px;
+            color: #667eea;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+        .eval-bar-container {
+            height: 30px;
+            background: #333;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+        .eval-bar {
+            height: 100%;
+            background: white;
+            transition: width 0.3s;
+        }
+        .eval-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            color: #667eea;
+            z-index: 1;
+        }
+        .move-suggestion {
+            padding: 10px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        .move-suggestion.rank-1 { border-left-color: #28a745; }
+        .move-suggestion.rank-2 { border-left-color: #ffc107; }
+        .move-suggestion.rank-3 { border-left-color: #dc3545; }
+        .move-notation {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 16px;
+        }
+        .move-explanation {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .move-history {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .history-move {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .board-green .white-1e1d7 { background-color: #eeeed2; }
+        .board-green .black-3c85d { background-color: #769656; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Chess vs Stockfish - Pro Edition</h1>
+            <div class="theme-selector">
+                <span>Theme:</span>
+                <button class="theme-btn active" onclick="changeTheme('wikipedia')">Classic</button>
+                <button class="theme-btn" onclick="changeTheme('alpha')">Modern</button>
+                <button class="theme-btn" onclick="changeTheme('uscf')">Professional</button>
+                <button class="theme-btn" onclick="changeTheme('green')">Green</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <!-- Left Panel: Analysis -->
+            <div class="left-panel">
+                <div class="panel-section">
+                    <h3>Position Evaluation</h3>
+                    <div class="eval-bar-container">
+                        <div class="eval-bar" id="evalBar" style="width: 50%"></div>
+                        <div class="eval-text" id="evalText">0.0</div>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h3>Best Moves</h3>
+                    <div id="topMoves">
+                        <div class="loading">Make a move to see analysis...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Center: Board -->
+            <div class="board-container">
+                <div id="status">Your turn (White)</div>
+                <div id="board"></div>
+                <div class="controls">
+                    <button class="btn-primary" onclick="newGame()">New Game</button>
+                    <button class="btn-secondary" onclick="getHint()">Get Hint</button>
+                    <button class="btn-secondary" onclick="undoMove()">Undo Move</button>
+                    <button class="btn-secondary" onclick="analyzePosition()">Analyze</button>
+                </div>
+            </div>
+            
+            <!-- Right Panel: Move History & Tools -->
+            <div class="right-panel">
+                <div class="panel-section">
+                    <h3>Move History</h3>
+                    <div class="move-history" id="moveHistory">
+                        <div class="loading">No moves yet</div>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h3>Game Modes</h3>
+                    <button class="btn-secondary" style="width: 100%; margin-bottom: 10px;">Practice Mode</button>
+                    <button class="btn-secondary" style="width: 100%; margin-bottom: 10px;">Puzzle Solver (Coming Soon)</button>
+                    <button class="btn-secondary" style="width: 100%;">Opening Trainer (Coming Soon)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        var game = new Chess();
+        var board = null;
+        var currentTheme = 'wikipedia';
+        
+        var themes = {
+            'wikipedia': 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+            'alpha': 'https://chessboardjs.com/img/chesspieces/alpha/{piece}.png',
+            'uscf': 'https://chessboardjs.com/img/chesspieces/uscf/{piece}.png',
+            'green': 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' // Uses same pieces, styled with CSS
+        };
+
+        function changeTheme(theme) {
+            currentTheme = theme;
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            // Remove any existing theme classes
+            document.getElementById('board').classList.remove('board-green');
+            
+            // Add green class if green theme selected
+            if (theme === 'green') {
+                document.getElementById('board').classList.add('board-green');
+            }
+            board.destroy();
+            initBoard();
+        }
+
+        function onDragStart(source, piece) {
+            if (game.game_over()) return false;
+            if (piece.search(/^b/) !== -1) return false;
+        }
+
+        function onDrop(source, target) {
+            var move = game.move({from: source, to: target, promotion: 'q'});
+            if (move === null) return 'snapback';
+
+            fetch('/make_move', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({move: source + target})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) { 
+                    alert(data.error);
+                    game.undo();
+                    return; 
+                }
+                game.load(data.fen);
+                board.position(data.fen);
+                
+                if (data.game_over) {
+                    document.getElementById('status').textContent = 'Game Over! Result: ' + data.result;
+                } else {
+                    document.getElementById('status').textContent = 'Stockfish played: ' + data.stockfish_move;
+                }
+                
+                updateMoveHistory(data.move_history);
+                analyzePosition();
+            });
+        }
+
+        function analyzePosition() {
+            document.getElementById('topMoves').innerHTML = '<div class=\"loading\">Analyzing...</div>';
+            
+            fetch('/analyze_position', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({fen: game.fen()})
+            })
+            .then(r => r.json())
+            .then(data => {
+                updateEvalBar(data.position_evaluation);
+                displayTopMoves(data.top_moves);
+            });
+        }
+
+        function updateEvalBar(evaluation) {
+            var percentage = Math.max(0, Math.min(100, 50 + (evaluation * 5)));
+            document.getElementById('evalBar').style.width = percentage + '%';
+            document.getElementById('evalText').textContent = evaluation.toFixed(1);
+        }
+
+        function displayTopMoves(moves) {
+            var html = '';
+            moves.forEach(move => {
+                html += '<div class=\"move-suggestion rank-' + move.rank + '\">';
+                html += '<div class=\"move-notation\">' + move.rank + '. ' + move.san + ' (' + move.evaluation.toFixed(1) + ')</div>';
+                html += '<div class=\"move-explanation\">' + move.explanation + '</div>';
+                html += '</div>';
+            });
+            document.getElementById('topMoves').innerHTML = html;
+        }
+
+        function updateMoveHistory(history) {
+            if (!history || history.length === 0) {
+                document.getElementById('moveHistory').innerHTML = '<div class=\"loading\">No moves yet</div>';
+                return;
+            }
+            
+            var html = '';
+            for (var i = 0; i < history.length; i += 2) {
+                var moveNum = Math.floor(i / 2) + 1;
+                html += '<div class=\"history-move\">';
+                html += '<span>' + moveNum + '.</span>';
+                html += '<span>' + history[i].move + '</span>';
+                html += '<span>' + (history[i+1] ? history[i+1].move : '') + '</span>';
+                html += '</div>';
+            }
+            document.getElementById('moveHistory').innerHTML = html;
+        }
+
+        function getHint() {
+            fetch('/hint')
+            .then(r => r.json())
+            .then(data => {
+                alert('Hint: ' + data.hint_san);
+            });
+        }
+
+        function undoMove() {
+            game.undo();
+            game.undo();
+            board.position(game.fen());
+            document.getElementById('status').textContent = 'Your turn (White)';
+        }
+
+        function newGame() {
+            fetch('/new_game', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                game = new Chess();
+                board.start();
+                document.getElementById('status').textContent = 'Your turn (White)';
+                document.getElementById('moveHistory').innerHTML = '<div class=\"loading\">No moves yet</div>';
+                document.getElementById('topMoves').innerHTML = '<div class=\"loading\">Make a move to see analysis...</div>';
+                updateEvalBar(0);
+            });
+        }
+
+        function initBoard() {
+            var config = {
+                draggable: true,
+                position: 'start',
+                onDragStart: onDragStart,
+                onDrop: onDrop,
+                pieceTheme: themes[currentTheme]
+            };
+            board = Chessboard('board', config);
+        }
+
+        initBoard();
+    </script>
+</body>
+</html>
