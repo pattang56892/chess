@@ -1,10 +1,12 @@
-﻿from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify
 import chess
 import chess.engine
 import chess.pgn
 from datetime import datetime
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)  # Add after app initialization
 
 STOCKFISH_PATH = r"C:\Users\patta\Downloads\Programming\03_RnD\10_chess\stockfish.exe"
 board = chess.Board()
